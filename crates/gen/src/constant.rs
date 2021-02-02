@@ -33,22 +33,7 @@ impl Constant {
             .constant()
             .expect(&format!("Missing constant value: {}", name));
 
-        let mut value = constant.value();
-
-        let value = match constant.value_type() {
-            winmd::ElementType::I8 => ConstantValue::I8(value.read_i8()),
-            winmd::ElementType::U8 => ConstantValue::U8(value.read_u8()),
-            winmd::ElementType::I16 => ConstantValue::I16(value.read_i16()),
-            winmd::ElementType::U16 => ConstantValue::U16(value.read_u16()),
-            winmd::ElementType::I32 => ConstantValue::I32(value.read_i32()),
-            winmd::ElementType::U32 => ConstantValue::U32(value.read_u32()),
-            winmd::ElementType::I64 => ConstantValue::I64(value.read_i64()),
-            winmd::ElementType::U64 => ConstantValue::U64(value.read_u64()),
-            winmd::ElementType::F32 => ConstantValue::F32(value.read_f32()),
-            winmd::ElementType::F64 => ConstantValue::F64(value.read_f64()),
-            winmd::ElementType::String => ConstantValue::String(value.read_utf16()),
-            value_type => panic!("Unsupported constant: {} ({:?})", name, value_type),
-        };
+        let value = ConstantValue::new(&constant);
 
         let name = format_ident(name);
         let value = value.gen();
@@ -75,7 +60,26 @@ pub enum ConstantValue {
 }
 
 impl ConstantValue {
-    fn gen(&self) -> TokenStream {
+    pub fn new(constant: &winmd::Constant) -> Self {
+        let mut value = constant.value();
+
+        match constant.value_type() {
+            winmd::ElementType::I8 => ConstantValue::I8(value.read_i8()),
+            winmd::ElementType::U8 => ConstantValue::U8(value.read_u8()),
+            winmd::ElementType::I16 => ConstantValue::I16(value.read_i16()),
+            winmd::ElementType::U16 => ConstantValue::U16(value.read_u16()),
+            winmd::ElementType::I32 => ConstantValue::I32(value.read_i32()),
+            winmd::ElementType::U32 => ConstantValue::U32(value.read_u32()),
+            winmd::ElementType::I64 => ConstantValue::I64(value.read_i64()),
+            winmd::ElementType::U64 => ConstantValue::U64(value.read_u64()),
+            winmd::ElementType::F32 => ConstantValue::F32(value.read_f32()),
+            winmd::ElementType::F64 => ConstantValue::F64(value.read_f64()),
+            winmd::ElementType::String => ConstantValue::String(value.read_utf16()),
+            value_type => panic!("Unsupported constant: ({:?})", value_type),
+        }
+    }
+
+    pub fn gen(&self) -> TokenStream {
         match self {
             Self::U8(value) => quote! { u8 = #value },
             Self::I8(value) => quote! { i8 = #value },

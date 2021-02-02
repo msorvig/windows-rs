@@ -12,29 +12,56 @@ pub fn method_to_snake(camel: &str, kind: MethodKind) -> String {
         _ => {}
     };
 
-    append_to_snake(snake, camel)
+    append(snake, camel, |c, buffer| {
+        let len = buffer.len();
+        buffer.extend(c.to_lowercase());
+        buffer.len() - len
+    })
 }
 
-/// Change a CamelCase name to snake case.
-pub fn to_snake(camel: &str) -> String {
-    debug_assert!(!camel.is_empty());
-    let snake = String::with_capacity(camel.len());
-    append_to_snake(snake, camel)
+/// Change a name to snake case.
+pub fn to_snake(name: &str) -> String {
+    debug_assert!(!name.is_empty());
+    let snake = String::with_capacity(name.len());
+
+    append(snake, name, |c, buffer| {
+        let len = buffer.len();
+        buffer.extend(c.to_lowercase());
+        len
+    })
 }
 
-fn append_to_snake(mut snake: String, camel: &str) -> String {
-    // Add any manual fixups here, anything that isn't handle automatically by the algorithm below.
+/// Change a name to upper case.
+pub fn to_upper(name: &str) -> String {
+    debug_assert!(!name.is_empty());
+    let upper = String::with_capacity(name.len());
+
+    append(upper, name, |c, buffer| {
+        let len = buffer.len();
+        buffer.extend(c.to_uppercase());
+        len
+    })
+}
+
+fn append<ToCase: Fn(char, &mut String) -> usize>(
+    mut result: String,
+    camel: &str,
+    to_case: ToCase,
+) -> String {
+    // Add any manual fixups here, anything that isn't handled automatically by the algorithm below.
     if camel == "WinRT" {
-        return "winrt".to_string();
+        to_case('w', &mut result);
+        to_case('i', &mut result);
+        to_case('n', &mut result);
+        to_case('r', &mut result);
+        to_case('t', &mut result);
+        return result;
     }
 
     let mut since_last_underscore = 0;
     let mut chars = camel.chars();
     // first character as lowercased
-    for c in chars.next().unwrap().to_lowercase() {
-        since_last_underscore += 1;
-        snake.push(c);
-    }
+    since_last_underscore += to_case(chars.next().unwrap(), &mut result);
 
     // zip together iterator of previous characters and next characters
     for (previous, next) in camel.chars().zip(camel.chars().skip(2)) {
@@ -44,7 +71,7 @@ fn append_to_snake(mut snake: String, camel: &str) -> String {
         // If the current character isn't uppercase we can just push it and move on
         if !current.is_uppercase() {
             since_last_underscore += 1;
-            snake.push(current);
+            result.push(current);
             continue;
         }
 
@@ -52,22 +79,18 @@ fn append_to_snake(mut snake: String, camel: &str) -> String {
             since_last_underscore = 0;
 
             if previous != '_' {
-                snake.push('_');
+                result.push('_');
             }
         }
 
-        for c in current.to_lowercase() {
-            since_last_underscore += 1;
-
-            snake.push(c);
-        }
+        since_last_underscore += to_case(current, &mut result);
     }
 
     if let Some(last) = chars.next() {
-        snake.extend(last.to_lowercase());
+        to_case(last, &mut result);
     }
 
-    snake
+    result
 }
 
 #[cfg(test)]
@@ -112,5 +135,33 @@ mod tests {
         );
 
         assert!(to_snake("WinRT") == "winrt");
+    }
+
+    #[test]
+    fn to_upper_works() {
+        assert_eq!(to_upper("Windows"), "WINDOWS".to_owned());
+
+        assert_eq!(to_upper("ApplicationModel"), "APPLICATION_MODEL".to_owned());
+
+        assert_eq!(to_upper("foo"), "FOO".to_owned());
+
+        assert_eq!(to_upper("UIProgramming"), "UI_PROGRAMMING".to_owned());
+
+        assert_eq!(
+            to_upper("CreateUInt8Array"),
+            "CREATE_UINT8_ARRAY".to_owned()
+        );
+
+        assert_eq!(to_upper("appointmentId"), "APPOINTMENT_ID".to_owned());
+
+        assert_eq!(to_upper("a"), "A".to_owned());
+        assert_eq!(to_upper("A"), "A".to_owned());
+
+        assert_eq!(
+            to_upper("CreateField_Default"),
+            "CREATE_FIELD_DEFAULT".to_owned()
+        );
+
+        assert!(to_upper("WinRT") == "WINRT");
     }
 }

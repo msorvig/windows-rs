@@ -6,6 +6,7 @@ use std::collections::BTreeSet;
 pub struct Struct {
     pub name: TypeName,
     pub fields: Vec<(String, Type)>,
+    pub constants: Vec<(String, ConstantValue)>,
     pub signature: String,
     pub is_typedef: bool,
     pub guid: TypeGuid,
@@ -22,36 +23,43 @@ impl Struct {
         };
 
         let mut fields = Vec::new();
+        let mut constants = Vec::new();
         let mut unique = BTreeSet::new();
 
         for field in name.def.fields() {
-            let mut t = Type::from_field(&field, &name.namespace);
+            if field.flags().literal() {
+                if let Some(constant) = field.constant() {
+                    constants.push((to_upper(field.name()), ConstantValue::new(&constant)))
+                }
+            } else {
+                let mut t = Type::from_field(&field, &name.namespace);
 
-            // TODO: workaround for https://github.com/microsoft/win32metadata/issues/132
-            if let TypeKind::Delegate(_) = &t.kind {
-                t.pointers = 0;
-            }
+                // TODO: workaround for https://github.com/microsoft/win32metadata/issues/132
+                if let TypeKind::Delegate(_) = &t.kind {
+                    t.pointers = 0;
+                }
 
-            let mut field_name = to_snake(field.name());
+                let mut field_name = to_snake(field.name());
 
-            // A handful of Win32 structs, like `CIECHROMA` and `GenTspecParms`, have fields whose snake case
-            // names are identical, so we handle this edge case by ensuring they get unique names.
-            if !unique.insert(field_name.clone()) {
-                let mut unique_count = 1;
+                // A handful of Win32 structs, like `CIECHROMA` and `GenTspecParms`, have fields whose snake case
+                // names are identical, so we handle this edge case by ensuring they get unique names.
+                if !unique.insert(field_name.clone()) {
+                    let mut unique_count = 1;
 
-                loop {
-                    unique_count += 1;
+                    loop {
+                        unique_count += 1;
 
-                    let unique_field_name = format!("{}{}", field_name, unique_count);
+                        let unique_field_name = format!("{}{}", field_name, unique_count);
 
-                    if unique.insert(unique_field_name.clone()) {
-                        field_name = unique_field_name;
-                        break;
+                        if unique.insert(unique_field_name.clone()) {
+                            field_name = unique_field_name;
+                            break;
+                        }
                     }
                 }
-            }
 
-            fields.push((field_name, t));
+                fields.push((field_name, t));
+            }
         }
 
         let guid = TypeGuid::from_type_def(&name.def);
@@ -81,6 +89,7 @@ impl Struct {
         Self {
             name,
             fields,
+            constants,
             signature,
             is_typedef,
             guid,
@@ -210,6 +219,15 @@ impl Struct {
                 }
             });
 
+        let constants = self.constants.iter().map(|(name, value)| {
+            let name = format_ident(&name);
+            let value = value.gen();
+
+            quote! {
+                pub const #name: #value;
+            }
+        });
+
         let compare_fields = if self.fields.is_empty() {
             quote! { true }
         } else {
@@ -274,6 +292,9 @@ impl Struct {
             #[repr(C)]
             #[doc(hidden)]
             pub struct #abi_ident(#(#abi),*);
+            impl #name {
+                #(#constants)*
+            }
             unsafe impl ::windows::Abi for #name {
                 type Abi = #abi_ident;
             }
