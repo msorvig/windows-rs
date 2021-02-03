@@ -1,6 +1,6 @@
 use crate::*;
 use squote::{format_ident, quote, Literal, TokenStream};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug)]
 pub struct Struct {
@@ -10,6 +10,7 @@ pub struct Struct {
     pub signature: String,
     pub is_typedef: bool,
     pub guid: TypeGuid,
+    pub nested: BTreeMap<&'static str, Self>,
 }
 
 impl Struct {
@@ -21,6 +22,15 @@ impl Struct {
         } else {
             String::new()
         };
+
+        let mut nested = BTreeMap::new();
+
+        for def in name.def.nested_types() {
+            let mut def_name = TypeName::new(&def, Vec::new(), &name.namespace);
+            def_name.namespace = name.namespace;
+            def_name.name = format!("{}_{}", name.name, nested.len());
+            nested.insert(def.name().1, Self::from_type_name(def_name));
+        }
 
         let mut fields = Vec::new();
         let mut constants = Vec::new();
@@ -93,6 +103,7 @@ impl Struct {
             signature,
             is_typedef,
             guid,
+            nested,
         }
     }
 
@@ -100,6 +111,11 @@ impl Struct {
         self.fields
             .iter()
             .flat_map(|i| i.1.kind.dependencies())
+            .chain(
+                self.nested
+                    .values()
+                    .flat_map(|nested| nested.dependencies()),
+            )
             .collect()
     }
 
@@ -283,7 +299,9 @@ impl Struct {
             quote! {}
         };
 
-        let debug_name = self.name.name;
+        let debug_name = &self.name.name;
+
+        let nested = self.nested.values().map(|nested| nested.gen());
 
         quote! {
             #[repr(C)]
@@ -323,6 +341,7 @@ impl Struct {
             impl ::std::cmp::Eq for #name {}
             #copy
             #runtime_type
+            #(#nested)*
         }
     }
 }

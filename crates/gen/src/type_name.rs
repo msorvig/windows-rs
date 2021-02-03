@@ -13,7 +13,7 @@ pub struct TypeName {
     /// The type's unqualified name without generics as a string
     ///
     /// e.g. "MyType"
-    pub name: &'static str,
+    pub name: String,
     /// A collection of the types generics
     pub generics: Vec<TypeKind>,
     /// The type definition for this type
@@ -30,11 +30,10 @@ impl TypeName {
         calling_namespace: &'static str,
     ) -> Self {
         let (namespace, name) = def.name();
-        //let calling_namespace = calling_namespace.to_string();
 
         Self {
             namespace,
-            name,
+            name: name.to_string(),
             generics,
             def: *def,
             calling_namespace,
