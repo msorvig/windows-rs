@@ -29,7 +29,7 @@ impl Struct {
         for field in name.def.fields() {
             if field.flags().literal() {
                 if let Some(constant) = field.constant() {
-                    constants.push((to_upper(field.name()), ConstantValue::new(&constant)))
+                    constants.push((field.name().to_string(), ConstantValue::new(&constant)))
                 }
             } else {
                 let mut t = Type::from_field(&field, &name.namespace);
