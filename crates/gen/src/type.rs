@@ -563,6 +563,7 @@ impl TypeKind {
         }
     }
 
+    // TODO: make recursive blittable test?
     pub fn primitive(&self) -> bool {
         match self {
             Self::Bool

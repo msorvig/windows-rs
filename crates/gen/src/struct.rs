@@ -295,7 +295,7 @@ impl Struct {
             }
         };
 
-        let copy = if self.is_typedef {
+        let copy = if self.fields.iter().all(|field|field.1.kind.primitive()) {
             quote! {
                 impl ::std::marker::Copy for #name {}
             }
@@ -307,45 +307,66 @@ impl Struct {
 
         let nested = self.nested.values().map(|nested| nested.gen());
 
-        quote! {
-            #[repr(C)]
-            #[allow(non_snake_case)]
-            pub struct #name #body
-            #[repr(C)]
-            #[doc(hidden)]
-            pub struct #abi_ident(#(#abi),*);
-            impl #name {
-                #(#constants)*
+        if self.name.def.flags().explicit() {
+            quote! {
+                #[repr(C)]
+                #[allow(non_snake_case)]
+                pub union #name #body
+                #(#nested)*
             }
-            unsafe impl ::windows::Abi for #name {
-                type Abi = #abi_ident;
-            }
-            impl ::std::default::Default for #name {
-                fn default() -> Self {
-                    #defaults
+        } else {
+            if self.nested.values().any(|nested|nested.name.def.flags().explicit()) {
+                quote! {
+                    #[repr(C)]
+                    #[allow(non_snake_case)]
+                    pub struct #name #body
+                    impl #name {
+                        #(#constants)*
+                    }
+                    #(#nested)*
+                }
+            } else {
+                quote! {
+                    #[repr(C)]
+                    #[allow(non_snake_case)]
+                    pub struct #name #body
+                    #[repr(C)]
+                    #[doc(hidden)]
+                    pub struct #abi_ident(#(#abi),*);
+                    impl #name {
+                        #(#constants)*
+                    }
+                    unsafe impl ::windows::Abi for #name {
+                        type Abi = #abi_ident;
+                    }
+                    impl ::std::default::Default for #name {
+                        fn default() -> Self {
+                            #defaults
+                        }
+                    }
+                    impl ::std::fmt::Debug for #name {
+                        fn fmt(&self, fmt: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                            fmt.debug_struct(#debug_name)
+                                #(#debug_fields)*
+                                .finish()
+                        }
+                    }
+                    impl ::std::clone::Clone for #name {
+                        fn clone(&self) -> Self {
+                            #clones
+                        }
+                    }
+                    impl ::std::cmp::PartialEq for #name {
+                        fn eq(&self, other: &Self) -> bool {
+                            #compare_fields
+                        }
+                    }
+                    impl ::std::cmp::Eq for #name {}
+                    #copy
+                    #runtime_type
+                    #(#nested)*
                 }
             }
-            impl ::std::fmt::Debug for #name {
-                fn fmt(&self, fmt: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-                    fmt.debug_struct(#debug_name)
-                        #(#debug_fields)*
-                        .finish()
-                }
-            }
-            impl ::std::clone::Clone for #name {
-                fn clone(&self) -> Self {
-                    #clones
-                }
-            }
-            impl ::std::cmp::PartialEq for #name {
-                fn eq(&self, other: &Self) -> bool {
-                    #compare_fields
-                }
-            }
-            impl ::std::cmp::Eq for #name {}
-            #copy
-            #runtime_type
-            #(#nested)*
         }
     }
 }
