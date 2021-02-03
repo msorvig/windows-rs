@@ -295,7 +295,7 @@ impl Struct {
             }
         };
 
-        let copy = if self.fields.iter().all(|field|field.1.kind.primitive()) {
+        let copy = if self.fields.iter().all(|field| field.1.kind.primitive()) {
             quote! {
                 impl ::std::marker::Copy for #name {}
             }
@@ -315,7 +315,11 @@ impl Struct {
                 #(#nested)*
             }
         } else {
-            if self.nested.values().any(|nested|nested.name.def.flags().explicit()) {
+            if self
+                .nested
+                .values()
+                .any(|nested| nested.name.def.flags().explicit())
+            {
                 quote! {
                     #[repr(C)]
                     #[allow(non_snake_case)]
