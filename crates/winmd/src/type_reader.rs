@@ -95,6 +95,13 @@ impl TypeReader {
             for row in 0..row_count {
                 let def = Row::new(row, TableIndex::TypeDef, index as u16);
                 let namespace = reader.str(def, 2).to_string();
+
+                if namespace.is_empty() {
+                    // This omits all of the nested types. While we need them, they aren't unique so
+                    // there isn't any point in indexing them inside the TypeReader.
+                    continue;
+                }
+
                 let name = reader.str(def, 1).to_string();
 
                 types

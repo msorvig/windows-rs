@@ -18,7 +18,7 @@ pub struct File {
     /// The index of the blobs data
     pub(crate) blobs: u32,
     /// The table data
-    pub(crate) tables: [TableData; 13],
+    pub(crate) tables: [TableData; 14],
 }
 
 /// A well-known index of data into the winmd tables array
@@ -38,6 +38,7 @@ pub enum TableIndex {
     TypeSpec,
     ImplMap,
     ModuleRef,
+    NestedClass,
 }
 
 impl TableData {
@@ -187,7 +188,6 @@ impl File {
         let mut unused_method_semantics = TableData::default();
         let mut unused_method_spec = TableData::default();
         let mut unused_module = TableData::default();
-        let mut unused_nested_class = TableData::default();
         let mut unused_property = TableData::default();
         let mut unused_property_map = TableData::default();
         let mut unused_standalone_sig = TableData::default();
@@ -235,7 +235,7 @@ impl File {
                 0x26 => unused_file.row_count = row_count,
                 0x27 => unused_exported_type.row_count = row_count,
                 0x28 => unused_manifest_resource.row_count = row_count,
-                0x29 => unused_nested_class.row_count = row_count,
+                0x29 => file.tables[TableIndex::NestedClass as usize].row_count = row_count,
                 0x2a => file.tables[TableIndex::GenericParam as usize].row_count = row_count,
                 0x2b => unused_method_spec.row_count = row_count,
                 0x2c => unused_generic_param_constraint.row_count = row_count,
@@ -496,7 +496,7 @@ impl File {
             0,
         );
         file.tables[TableIndex::ModuleRef as usize].set_columns(string_index_size, 0, 0, 0, 0, 0);
-        unused_nested_class.set_columns(
+        file.tables[TableIndex::NestedClass as usize].set_columns(
             file.tables[TableIndex::TypeDef as usize].index_size(),
             file.tables[TableIndex::TypeDef as usize].index_size(),
             0,
@@ -567,7 +567,7 @@ impl File {
         unused_file.set_data(&mut view);
         unused_exported_type.set_data(&mut view);
         unused_manifest_resource.set_data(&mut view);
-        unused_nested_class.set_data(&mut view);
+        file.tables[TableIndex::NestedClass as usize].set_data(&mut view);
         file.tables[TableIndex::GenericParam as usize].set_data(&mut view);
 
         file
