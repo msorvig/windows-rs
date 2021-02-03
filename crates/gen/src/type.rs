@@ -1,5 +1,6 @@
 use crate::*;
 use squote::{quote, TokenStream};
+use std::collections::BTreeMap;
 use winmd::Decode;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord)]
@@ -58,6 +59,7 @@ impl Type {
         generics: &[TypeKind],
         calling_namespace: &'static str,
         is_return_type: bool,
+        nested: &BTreeMap<&'static str, Struct>,
     ) -> Option<Self> {
         let modifiers = blob.read_modifiers();
         let mut by_ref = blob.read_expected(0x10);
@@ -97,8 +99,7 @@ impl Type {
                     winmd::TypeDefOrRef::decode(blob.reader, blob.read_unsigned(), blob.file_index);
 
                 if def.name().0.is_empty() {
-                    // TODO: handle nested types
-                    TypeKind::NotYetSupported
+                    TypeKind::Struct(nested[def.name().1].name.clone())
                 } else {
                     TypeKind::from_type_def_or_ref(&def, generics, calling_namespace)
                 }
@@ -165,11 +166,23 @@ impl Type {
         })
     }
 
-    pub fn from_field(field: &winmd::Field, calling_namespace: &'static str) -> Self {
+    pub fn from_field(
+        field: &winmd::Field,
+        calling_namespace: &'static str,
+        nested: &BTreeMap<&'static str, Struct>,
+    ) -> Self {
         let mut blob = field.sig();
         blob.read_unsigned();
         blob.read_modifiers();
-        Self::from_blob(&mut blob, None, &Vec::new(), calling_namespace, false).unwrap()
+        Self::from_blob(
+            &mut blob,
+            None,
+            &Vec::new(),
+            calling_namespace,
+            false,
+            nested,
+        )
+        .unwrap()
     }
 
     pub fn gen_field(&self) -> TokenStream {

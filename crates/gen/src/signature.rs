@@ -25,16 +25,29 @@ impl Signature {
         blob.read_unsigned(); // First byte of MethodDefSig is not used.
         let param_count = blob.read_unsigned() as usize;
 
-        let return_type =
-            Type::from_blob(&mut blob, return_param, generics, calling_namespace, true);
+        let return_type = Type::from_blob(
+            &mut blob,
+            return_param,
+            generics,
+            calling_namespace,
+            true,
+            &Default::default(),
+        );
 
         debug_assert!(params.len() == param_count);
         let mut param_types = Vec::with_capacity(param_count);
 
         for param in params {
             param_types.push(
-                Type::from_blob(&mut blob, Some(param), generics, calling_namespace, false)
-                    .unwrap(),
+                Type::from_blob(
+                    &mut blob,
+                    Some(param),
+                    generics,
+                    calling_namespace,
+                    false,
+                    &Default::default(),
+                )
+                .unwrap(),
             );
         }
 

@@ -88,7 +88,15 @@ impl TypeName {
         let mut args = Vec::with_capacity(blob.read_unsigned() as usize);
 
         for _ in 0..args.capacity() {
-            let t = Type::from_blob(blob, None, generics, calling_namespace, false).unwrap();
+            let t = Type::from_blob(
+                blob,
+                None,
+                generics,
+                calling_namespace,
+                false,
+                &Default::default(),
+            )
+            .unwrap();
             args.push(t.kind);
         }
 
@@ -217,7 +225,7 @@ impl TypeName {
 
         for field in self.def.fields() {
             result.push(';');
-            let t = Type::from_field(&field, &self.calling_namespace);
+            let t = Type::from_field(&field, &self.calling_namespace, &Default::default());
             result.push_str(&t.kind.signature());
         }
 
@@ -256,6 +264,10 @@ impl TypeName {
     }
 
     pub fn dependencies(&self) -> Vec<winmd::TypeDef> {
+        if self.def.name().0.is_empty() {
+            return Vec::new();
+        }
+
         std::iter::once(self.def)
             .chain(self.generics.iter().flat_map(|i| i.dependencies()))
             .collect()

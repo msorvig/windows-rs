@@ -28,6 +28,10 @@ impl Struct {
         for def in name.def.nested_types() {
             let mut def_name = TypeName::new(&def, Vec::new(), &name.namespace);
             def_name.namespace = name.namespace;
+
+            // TODO: if the metadata name is not generated then perhaps just append the name
+            debug_assert!(def_name.name.starts_with("_"));
+
             def_name.name = format!("{}_{}", name.name, nested.len());
             nested.insert(def.name().1, Self::from_type_name(def_name));
         }
@@ -42,7 +46,7 @@ impl Struct {
                     constants.push((field.name().to_string(), ConstantValue::new(&constant)))
                 }
             } else {
-                let mut t = Type::from_field(&field, &name.namespace);
+                let mut t = Type::from_field(&field, &name.namespace, &nested);
 
                 // TODO: workaround for https://github.com/microsoft/win32metadata/issues/132
                 if let TypeKind::Delegate(_) = &t.kind {
