@@ -583,6 +583,10 @@ impl File {
     pub(crate) fn type_def_table(&self) -> &TableData {
         &self.tables[TableIndex::TypeDef as usize]
     }
+
+    pub(crate) fn nested_class_table(&self) -> &TableData {
+        &self.tables[TableIndex::NestedClass as usize]
+    }
 }
 
 fn section_from_rva(sections: &[ImageSectionHeader], rva: u32) -> &ImageSectionHeader {

@@ -3,19 +3,22 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-/// A reader of type information from Windows Metadata
+// A reader of type information from Windows Metadata files.
 pub struct TypeReader {
     // TODO: fields should be private
-    /// The parsed Windows metadata files the [`TypeReader`] has access to
+
+    // The parsed Windows metadata files the [`TypeReader`] has access to.
     pub files: Vec<File>,
-    /// Types known to this [`TypeReader`]
-    ///
-    /// This is a mapping between namespace names and the types inside
-    /// that namespace. The keys are the namespace and the values is a mapping
-    /// of type names to type definitions
+
+    // Types cached known to this [`TypeReader`].
+    //
+    // This is a mapping between namespace names and the types inside
+    // that namespace. The keys are the namespace and the values is a mapping
+    // of type names to type definitions.
     types: BTreeMap<String, BTreeMap<String, TypeRow>>,
-    // TODO: store Row objects and turn them into TypeDef on request.
-    // When turning into TypeDef they add the &'static TypeReader
+
+    // A mapping of types and their nested types, if any.
+    pub nested_types: BTreeMap<Row, Vec<Row>>,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -85,9 +88,11 @@ impl TypeReader {
         let reader = Self {
             files,
             types: BTreeMap::default(),
+            nested_types: BTreeMap::default(),
         };
 
         let mut types = BTreeMap::<String, BTreeMap<String, TypeRow>>::default();
+        let mut nested_types = BTreeMap::<Row, Vec<Row>>::default();
 
         for (index, file) in reader.files.iter().enumerate() {
             let row_count = file.type_def_table().row_count;
@@ -148,6 +153,16 @@ impl TypeReader {
                         .or_insert(TypeRow::MethodDef((def, method)));
                 }
             }
+
+            let row_count = file.nested_class_table().row_count;
+
+            for row in 0..row_count {
+                let row = Row::new(row, TableIndex::NestedClass, index as u16);
+                let nested = Row::new(reader.u32(row, 0), TableIndex::TypeDef, index as u16);
+                let enclosing = Row::new(reader.u32(row, 1), TableIndex::TypeDef, index as u16);
+
+                nested_types.entry(enclosing).or_default().push(nested);
+            }
         }
 
         fn remove_excluded_type(
@@ -185,6 +200,7 @@ impl TypeReader {
         Self {
             files: reader.files,
             types,
+            nested_types,
         }
     }
 

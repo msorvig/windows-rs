@@ -66,6 +66,7 @@ impl TypeDef {
             })
     }
 
+    // TODO: Remove as this is broken - sadly we can't use binary search to find nested types
     pub fn nested_types(&self) -> impl Iterator<Item = TypeDef> + '_ {
         self.reader
             .equal_range(
