@@ -18,7 +18,7 @@ pub struct File {
     /// The index of the blobs data
     pub(crate) blobs: u32,
     /// The table data
-    pub(crate) tables: [TableData; 14],
+    pub(crate) tables: [TableData; 16],
 }
 
 /// A well-known index of data into the winmd tables array
@@ -39,6 +39,8 @@ pub enum TableIndex {
     ImplMap,
     ModuleRef,
     NestedClass,
+    Module,
+    AssemblyRef,
 }
 
 impl TableData {
@@ -170,7 +172,6 @@ impl File {
         let mut unused_assembly = TableData::default();
         let mut unused_assembly_os = TableData::default();
         let mut unused_assembly_processor = TableData::default();
-        let mut unused_assembly_ref = TableData::default();
         let mut unused_assembly_ref_os = TableData::default();
         let mut unused_assembly_ref_processor = TableData::default();
         let mut unused_class_layout = TableData::default();
@@ -187,7 +188,6 @@ impl File {
         let mut unused_method_impl = TableData::default();
         let mut unused_method_semantics = TableData::default();
         let mut unused_method_spec = TableData::default();
-        let mut unused_module = TableData::default();
         let mut unused_property = TableData::default();
         let mut unused_property_map = TableData::default();
         let mut unused_standalone_sig = TableData::default();
@@ -201,7 +201,7 @@ impl File {
             view += 4;
 
             match i {
-                0x00 => unused_module.row_count = row_count,
+                0x00 => file.tables[TableIndex::Module as usize].row_count = row_count,
                 0x01 => file.tables[TableIndex::TypeRef as usize].row_count = row_count,
                 0x02 => file.tables[TableIndex::TypeDef as usize].row_count = row_count,
                 0x04 => file.tables[TableIndex::Field as usize].row_count = row_count,
@@ -229,7 +229,7 @@ impl File {
                 0x20 => unused_assembly.row_count = row_count,
                 0x21 => unused_assembly_processor.row_count = row_count,
                 0x22 => unused_assembly_os.row_count = row_count,
-                0x23 => unused_assembly_ref.row_count = row_count,
+                0x23 => file.tables[TableIndex::AssemblyRef as usize].row_count = row_count,
                 0x24 => unused_assembly_ref_processor.row_count = row_count,
                 0x25 => unused_assembly_ref_os.row_count = row_count,
                 0x26 => unused_file.row_count = row_count,
@@ -263,14 +263,14 @@ impl File {
             &file.tables[TableIndex::Param as usize],
             &file.tables[TableIndex::InterfaceImpl as usize],
             &file.tables[TableIndex::MemberRef as usize],
-            &unused_module,
+            &file.tables[TableIndex::Module as usize],
             &unused_property,
             &unused_event,
             &unused_standalone_sig,
             &file.tables[TableIndex::ModuleRef as usize],
             &file.tables[TableIndex::TypeSpec as usize],
             &unused_assembly,
-            &unused_assembly_ref,
+            &file.tables[TableIndex::AssemblyRef as usize],
             &unused_file,
             &unused_exported_type,
             &unused_manifest_resource,
@@ -311,7 +311,7 @@ impl File {
         ]);
 
         let implementation =
-            composite_index_size(&[&unused_file, &unused_assembly_ref, &unused_exported_type]);
+            composite_index_size(&[&unused_file, &file.tables[TableIndex::AssemblyRef as usize], &unused_exported_type]);
 
         let custom_attribute_type = composite_index_size(&[
             &file.tables[TableIndex::MethodDef as usize],
@@ -322,9 +322,9 @@ impl File {
         ]);
 
         let resolution_scope = composite_index_size(&[
-            &unused_module,
+            &file.tables[TableIndex::Module as usize],
             &file.tables[TableIndex::ModuleRef as usize],
-            &unused_assembly_ref,
+            &file.tables[TableIndex::AssemblyRef as usize],
             &file.tables[TableIndex::TypeRef as usize],
         ]);
 
@@ -343,7 +343,7 @@ impl File {
         );
         unused_assembly_os.set_columns(4, 4, 4, 0, 0, 0);
         unused_assembly_processor.set_columns(4, 0, 0, 0, 0, 0);
-        unused_assembly_ref.set_columns(
+        file.tables[TableIndex::AssemblyRef as usize].set_columns(
             8,
             4,
             blob_index_size,
@@ -351,8 +351,8 @@ impl File {
             string_index_size,
             blob_index_size,
         );
-        unused_assembly_ref_os.set_columns(4, 4, 4, unused_assembly_ref.index_size(), 0, 0);
-        unused_assembly_ref_processor.set_columns(4, unused_assembly_ref.index_size(), 0, 0, 0, 0);
+        unused_assembly_ref_os.set_columns(4, 4, 4, file.tables[TableIndex::AssemblyRef as usize].index_size(), 0, 0);
+        unused_assembly_ref_processor.set_columns(4, file.tables[TableIndex::AssemblyRef as usize].index_size(), 0, 0, 0, 0);
         unused_class_layout.set_columns(
             2,
             4,
@@ -487,7 +487,7 @@ impl File {
             0,
         );
         unused_method_spec.set_columns(method_def_or_ref, blob_index_size, 0, 0, 0, 0);
-        unused_module.set_columns(
+        file.tables[TableIndex::Module as usize].set_columns(
             2,
             string_index_size,
             guid_index_size,
@@ -533,7 +533,7 @@ impl File {
         );
         file.tables[TableIndex::TypeSpec as usize].set_columns(blob_index_size, 0, 0, 0, 0, 0);
 
-        unused_module.set_data(&mut view);
+        file.tables[TableIndex::Module as usize].set_data(&mut view);
         file.tables[TableIndex::TypeRef as usize].set_data(&mut view);
         file.tables[TableIndex::TypeDef as usize].set_data(&mut view);
         file.tables[TableIndex::Field as usize].set_data(&mut view);
@@ -561,7 +561,7 @@ impl File {
         unused_assembly.set_data(&mut view);
         unused_assembly_processor.set_data(&mut view);
         unused_assembly_os.set_data(&mut view);
-        unused_assembly_ref.set_data(&mut view);
+        file.tables[TableIndex::AssemblyRef as usize].set_data(&mut view);
         unused_assembly_ref_processor.set_data(&mut view);
         unused_assembly_ref_os.set_data(&mut view);
         unused_file.set_data(&mut view);
