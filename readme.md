@@ -25,9 +25,9 @@ This will allow Cargo to download, build, and cache Windows support as a package
 ```rust
 fn main() {
     windows::build!(
-        windows::data::xml::dom::*
-        windows::win32::system_services::{CreateEventW, SetEvent, WaitForSingleObject}
-        windows::win32::windows_programming::CloseHandle
+        windows::data::xml::dom::*,
+        windows::win32::system_services::{CreateEventW, SetEvent, WaitForSingleObject},
+        windows::win32::windows_programming::CloseHandle,
     );
 }
 ```
